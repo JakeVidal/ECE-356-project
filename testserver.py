@@ -13,7 +13,12 @@ async def handle_client(client):
 		request = request.decode('utf8').split(':')
 		print(str(request) + '   ' + str(cn))
 
-		clientlist[cn][request[0]] = int(request[1])
+		if request[0] == 'xcoord':
+			clientlist[cn]['xcoord'] = int(request[1])
+		if request[0] == 'ycoord':
+			clientlist[cn]['ycoord'] = int(request[1])	
+		if request[0] == 'damage':
+			clientlist[cn]['damage'] += int(request[1])		
 
 		response = ''
 		for player in clientlist:	
@@ -27,7 +32,7 @@ async def run_server():
 	while True:
 		client, address = await loop.sock_accept(server)
 		loop.create_task(handle_client(client))
-		clientdata = {'xcoord': 0, 'ycoord': 0}
+		clientdata = {'xcoord': 0, 'ycoord': 0, 'damage': 0}
 		clientlist[client.fileno()] = clientdata
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
