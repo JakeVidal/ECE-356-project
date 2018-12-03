@@ -15,10 +15,6 @@ root.title("Client application")
 #root.iconbitmap('icon.ico')
 embed = tk.Frame(root, width=width, height=height)
 embed.pack()
-slidery = tk.Scale(root, from_=-180, to=180, orient=tk.HORIZONTAL, label='Y-axis')
-slidery.pack(side=tk.RIGHT)
-sliderx = tk.Scale(root, from_=-180, to=180, orient=tk.HORIZONTAL, label='X-axis')
-sliderx.pack(side=tk.RIGHT)
 
 # Tell pygame's SDL window which window ID to use    
 os.environ['SDL_WINDOWID'] = str(embed.winfo_id())
@@ -46,7 +42,7 @@ class Character(pg.sprite.Sprite):
 	def __init__(self):
 		pg.sprite.Sprite.__init__(self)
 		self.image = pg.image.load('character.png').convert_alpha()
-		self.image = pg.transform.scale(self.image, (32,32))
+		self.image = pg.transform.scale(self.image, (64,64))
 		self.rect = self.image.get_rect()
 
 	def update(self, xcoord, ycoord):
@@ -80,9 +76,6 @@ monsters.add(monster)
 while 1:
 
     clock.tick(60)
-
-#    xcoord = int((sliderx.get() + 180)*1.39)
-#    ycoord = int((slidery.get() + 180)*0.69)
 
     key = pg.key.get_pressed()
     if key[pg.K_LEFT]:
@@ -130,7 +123,7 @@ while 1:
     s.sendall(cmd.encode('utf8'))
     monsterdata = s.recv(1024).decode('utf8')
 
-    monster.hp = 100 - int(monsterdata)
+    monster.hp = 100 - float(monsterdata)
     
     # Clear screen before next frame
     screen.blit(background, (0, 0))

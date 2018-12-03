@@ -24,15 +24,19 @@ async def handle_client(client):
 			await loop.sock_sendall(client, response.encode('utf8'))
 
 		if request[0] == 'damage':
-			clientlist[cn]['damage'] += (int(request[1]) * int(clientlist[cn]['strength']))		
+			clientlist[cn]['damage'] += int(request[1]) * clientlist[cn]['strength']
 
 			damage = 0
 			response = ''
 			for player in clientlist:	
-				damage += int(clientlist[player]['damage'])
+				damage += clientlist[player]['damage']
+				if clientlist[player]['damage'] > 50:
+					if clientlist[player]['flag'] == 0: clientlist[player]['strength'] += 0.2
+					clientlist[player]['flag'] = 1
 			if damage > 100:
 				for player in clientlist:
 					clientlist[player]['damage'] = 0
+				clientlist[player]['flag'] = 0
 				response = '100'
 			else:
 				response = str(damage)
@@ -45,7 +49,7 @@ async def run_server():
 	while True:
 		client, address = await loop.sock_accept(server)
 		loop.create_task(handle_client(client))
-		clientdata = {'xcoord': 0, 'ycoord': 0, 'damage': 0, 'strength': 1}
+		clientdata = {'xcoord': 0, 'ycoord': 0, 'damage': 0, 'strength': 1, 'flag': 0}
 		clientlist[client.fileno()] = clientdata
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
