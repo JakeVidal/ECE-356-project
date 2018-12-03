@@ -4,9 +4,10 @@ import os
 import socket
 
 # Global variables
-width, height, center = 500, 250, (150, 125)
+width, height, center = 500, 250, (250, 125)
 HOST = '127.0.0.1'
 PORT = 10000 # this is arbitrary, must be >1024
+xcoord, ycoord = center
 
 # Add tkinter widgets placing pygame in embed
 root = tk.Tk()
@@ -37,14 +38,14 @@ s.connect((HOST, PORT))
 clock = pg.time.Clock()
 
 # Set screen background
-background = pg.Surface((width,height)).convert()
-background.fill((100,100,100))
+background = pg.image.load('background.png').convert()
+background = pg.transform.scale(background, (width,height))
 screen.blit(background, (0,0))
 
 class Character(pg.sprite.Sprite):
 	def __init__(self):
 		pg.sprite.Sprite.__init__(self)
-		self.image = pg.image.load('character.png').convert()
+		self.image = pg.image.load('character.png').convert_alpha()
 		self.image = pg.transform.scale(self.image, (32,32))
 		self.rect = self.image.get_rect()
 
@@ -54,34 +55,50 @@ class Character(pg.sprite.Sprite):
 class Monster(pg.sprite.Sprite):
 	def __init__(self):
 		pg.sprite.Sprite.__init__(self)
-		self.image = pg.image.load('monster.png').convert()
+		self.image = pg.image.load('monster.png').convert_alpha()
 		self.image = pg.transform.scale(self.image, (128,128))
 		self.rect = self.image.get_rect()
-		self.rect.center = center
+		self.rect.center = (150,125)
+		self.hp = 100
 
 	def damaged(self):
 		if self.rect.collidepoint((xcoord, ycoord)):
-			cmd = 'damage:5'
-			s.sendall(cmd.encode('utf8'))
-			playerdata = s.recv(1024).decode('utf8')
+			cmd = 'damage:1'
+			return cmd
+		else:
+			cmd = 'damage:0'
+			return cmd
 
 # create a sprite group
 sprites = pg.sprite.Group()
 monsters = pg.sprite.Group()
+
+monster = Monster()
+monsters.add(monster)
 
 # Main animation loop
 while 1:
 
     clock.tick(60)
 
-    xcoord = int((sliderx.get() + 180)*1.39)
-    ycoord = int((slidery.get() + 180)*0.69)
-       
-    cmd = 'xcoord:' + str(xcoord)
-    s.sendall(cmd.encode('utf8'))
-    playerdata = s.recv(1024).decode('utf8')
+#    xcoord = int((sliderx.get() + 180)*1.39)
+#    ycoord = int((slidery.get() + 180)*0.69)
 
-    cmd = 'ycoord:' + str(ycoord)
+    key = pg.key.get_pressed()
+    if key[pg.K_LEFT]:
+        if xcoord > 0:
+            xcoord -= 10
+    if key[pg.K_RIGHT]:
+        if xcoord < 500:
+            xcoord += 10
+    if key[pg.K_UP]:
+        if ycoord > 0:
+            ycoord -= 10
+    if key[pg.K_DOWN]:
+        if ycoord < 250:
+            ycoord += 10
+
+    cmd = 'coord:' + str(xcoord) + ':' + str(ycoord)
     s.sendall(cmd.encode('utf8'))
     playerdata = s.recv(1024).decode('utf8')
 
@@ -109,16 +126,22 @@ while 1:
         sprite.update(location[num][0], location[num][1])
         num += 1
 
-    monster = Monster()
-    monsters.add(monster)
-    monster.damaged()
+    cmd = monster.damaged()
+    s.sendall(cmd.encode('utf8'))
+    monsterdata = s.recv(1024).decode('utf8')
 
+    monster.hp = 100 - int(monsterdata)
+    
     # Clear screen before next frame
     screen.blit(background, (0, 0))
 
+    # Draw HP to screen
+    pg.draw.line(screen, (0,255,0), (100, 50), (100+monster.hp, 50), 10)
+
     # Draw sprites to screen
+    if monster.hp > 0:
+    	monsters.draw(screen)	
     sprites.draw(screen)
-    monsters.draw(screen)	
 
     # Update pygame display
     pg.display.flip()
