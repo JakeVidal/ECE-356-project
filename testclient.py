@@ -2,6 +2,7 @@ import tkinter as tk
 import pygame as pg
 import os
 import socket
+import time
 
 running = True
 
@@ -24,6 +25,37 @@ class Client():
 		self.monster = Monster()
 		self.monsters.add(self.monster)
 
+		self.log_in()
+
+	def log_in(self):
+		logging_in = True
+
+		while logging_in:
+			select = input("Type 'login' to log in with an existing account or 'create' to create a new account: ")
+
+			if select == 'login':
+				user = input('Enter an existing username: ')
+				passw = input('Enter an existing password: ')
+				cmd = 'login:' + user + ':' +  passw
+				self.sock.sendall(cmd.encode('utf8'))
+				start = self.sock.recv(1024).decode('utf8')
+				if start == 'accepted':
+					logging_in = False
+				else:
+					pass
+
+			elif select == 'create':
+				user = input('Enter a new username: ')
+				passw = input('Enter a new password: ')
+				cmd = 'create:' + user + ':' +  passw
+				self.sock.sendall(cmd.encode('utf8'))
+				start = self.sock.recv(1024).decode('utf8')
+				if start == 'accepted':
+					logging_in = False
+				else:
+					pass
+
+		self.application.start_game()
 		self.game_loop()
 
 	def game_loop(self):
@@ -93,22 +125,40 @@ class Client():
 
 class Application():
 	def __init__(self, width, height):
+		self.user = 'user'
+		self.passw = 'passw'
+		self.width = width
+		self.height = height
 		self.root = tk.Tk()
 		self.root.title('Client application')
 		self.root.iconbitmap('icon.ico')
 		self.root.protocol('WM_DELETE_WINDOW', lambda: exec(compile('global running; running = False', '<string>', 'exec')))
-		self.embed = tk.Frame(self.root, width = width, height = height)
-		self.embed.pack()
+		
+		self.graphics_frame()
+		self.account_frame()
+
+	def graphics_frame(self):
+		self.embed = tk.Frame(self.root, width = self.width, height = self.height)
+		self.embed.grid(row = 0, column = 0, sticky = 'news')
 
 		os.environ['SDL_WINDOWID'] = str(self.embed.winfo_id())
 		self.root.update()
 
 		pg.display.init()
-		self.screen = pg.display.set_mode((width, height))
+		self.screen = pg.display.set_mode((self.width, self.height))
 
 		self.background = pg.image.load('background.png').convert()
-		self.background = pg.transform.scale(self.background, (width, height))
+		self.background = pg.transform.scale(self.background, (self.width, self.height))
 		self.screen.blit(self.background, (0, 0))
+
+	def account_frame(self):
+		self.pane = tk.Frame(self.root, width = self.width, height = self.height)
+		self.pane.grid(row = 0, column = 0, sticky = 'news')
+		tk.Label(self.pane, text = 'Log in or create account using console').pack()
+
+		self.root.update()
+
+		self.pane.tkraise()
 
 	def clear_screen(self):
 		self.screen.blit(self.background, (0, 0))
@@ -121,6 +171,9 @@ class Application():
 	def update_screen(self):
 		pg.display.flip()
 		self.root.update()
+
+	def start_game(self):
+		self.embed.tkraise()
 
 class Character(pg.sprite.Sprite):
 	def __init__(self):
