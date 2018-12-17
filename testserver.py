@@ -82,7 +82,7 @@ class Server():
 		response = ''
 		for player in self.clientlist:	
 			total += self.clientlist[player]['damage']
-			if self.clientlist[player]['damage'] > 50:
+			if self.clientlist[player]['damage'] > 75:
 				if self.clientlist[player]['flag'] == 0: self.accountlist[self.clientlist[player]['account']]['strength'] += 0.2
 				self.clientlist[player]['flag'] = 1
 		if total > 100:

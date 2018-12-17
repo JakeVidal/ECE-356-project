@@ -125,8 +125,6 @@ class Client():
 
 class Application():
 	def __init__(self, width, height):
-		self.user = 'user'
-		self.passw = 'passw'
 		self.width = width
 		self.height = height
 		self.root = tk.Tk()
