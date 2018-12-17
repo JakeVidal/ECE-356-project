@@ -3,14 +3,14 @@ import asyncio
 
 class Server():
 	def __init__(self):
+		self.clientlist = {}
+
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.bind(('127.0.0.1', 10000))
 		self.sock.listen(5)
 		self.sock.setblocking(False)
+		
 		self.loop = asyncio.get_event_loop()
-		self.clientlist = {}
-
-	def start_server(self):
 		self.loop.run_until_complete(self.run_server());
 
 	async def run_server(self):
@@ -21,7 +21,9 @@ class Server():
 			self.clientlist[client.fileno()] = clientdata
 
 	async def handle_client(self, client):
-		while True:
+		running = True
+
+		while running:
 			request = ['']
 			request = await self.loop.sock_recv(client, 1024)
 			request = request.decode('utf8').split(':')
@@ -33,6 +35,10 @@ class Server():
 			if request[0] == 'damage':
 				await self.handle_monster(client, int(request[1]))
 
+			if request[0] == 'quit':
+				running = False
+
+		del self.clientlist[client.fileno()]
 		client.close()
 
 	async def handle_player(self, client, xcoord, ycoord):
@@ -66,4 +72,3 @@ class Server():
 		await self.loop.sock_sendall(client, response.encode('utf8'))
 
 server = Server()
-server.start_server()
