@@ -3,40 +3,113 @@ import pygame as pg
 import os
 import socket
 
-# Global variables
-width, height, center = 500, 250, (250, 125)
-HOST = '127.0.0.1'
-PORT = 10000 # this is arbitrary, must be >1024
-xcoord, ycoord = center
+class Client():
+	def __init__(self):
+		self.width, self.height = 500, 200
+		self.center = (int(self.width/2), int(self.height/2))
+		self.xcoord, self.ycoord = self.center
 
-# Add tkinter widgets placing pygame in embed
-root = tk.Tk()
-root.title("Client application")
-#root.iconbitmap('icon.ico')
-embed = tk.Frame(root, width=width, height=height)
-embed.pack()
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.sock.connect(('127.0.0.1', 10000))
 
-# Tell pygame's SDL window which window ID to use    
-os.environ['SDL_WINDOWID'] = str(embed.winfo_id())
+		self.clock = pg.time.Clock()
+		
+		self.start_application()
 
-# Show the window so it's assigned an ID.
-root.update()
+		self.sprites = pg.sprite.Group()
+		self.monsters = pg.sprite.Group()
 
-# Usual pygame initialization
-pg.display.init()
-screen = pg.display.set_mode((width,height))
+		self.monster = Monster()
+		self.monsters.add(self.monster)
 
-# Connect to server
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((HOST, PORT))
+		self.game_loop()
 
-# Create a clock for loop timing
-clock = pg.time.Clock()
 
-# Set screen background
-background = pg.image.load('background.png').convert()
-background = pg.transform.scale(background, (width,height))
-screen.blit(background, (0,0))
+	def start_application(self):
+		self.root = tk.Tk()
+		self.root.title('Client application')
+		self.root.iconbitmap('icon.ico')
+		self.embed = tk.Frame(self.root, width = self.width, height = self.height)
+		self.embed.pack()
+
+		os.environ['SDL_WINDOWID'] = str(self.embed.winfo_id())
+		self.root.update()
+
+		pg.display.init()
+		self.screen = pg.display.set_mode((self.width, self.height))
+
+		self.background = pg.image.load('background.png').convert()
+		self.background = pg.transform.scale(self.background, (self.width,self.height))
+		self.screen.blit(self.background, (0,0))
+
+	def game_loop(self):
+		while 1:
+			self.clock.tick(60)
+
+			key = pg.key.get_pressed()
+			if key[pg.K_LEFT]:
+				if self.xcoord > 0:
+					self.xcoord -= 10
+			if key[pg.K_RIGHT]:
+				if self.xcoord < 500:
+					self.xcoord += 10
+			if key[pg.K_UP]:
+				if self.ycoord > 0:
+					self.ycoord -= 10
+			if key[pg.K_DOWN]:
+				if self.ycoord < 250:
+					self.ycoord += 10
+
+			cmd = 'coord:' + str(self.xcoord) + ':' + str(self.ycoord)
+			self.sock.sendall(cmd.encode('utf8'))
+			playerdata = self.sock.recv(1024).decode('utf8')
+
+			print(playerdata)
+			playerdata = playerdata.split(';')
+			playerdata = playerdata[0:len(playerdata)-1]
+
+			numplayers = len(playerdata)
+			while len(self.sprites) != numplayers:
+				if len(self.sprites) < numplayers:
+					p = Character()
+					self.sprites.add(p)
+				elif len(self.sprites) > numplayers:
+					p = Character()
+					self.sprites.remove()
+
+			location = []
+
+			for player in playerdata:
+				player = player.split(':')
+				location += [(int(player[0]), int(player[1]))]            
+
+			num = 0
+			for sprite in self.sprites:
+				sprite.update(location[num][0], location[num][1])
+				num += 1
+
+			cmd = self.monster.damaged(self.xcoord, self.ycoord)
+			self.sock.sendall(cmd.encode('utf8'))
+			monsterdata = self.sock.recv(1024).decode('utf8')
+
+			self.monster.hp = 100 - float(monsterdata)
+			
+			# Clear screen before next frame
+			self.screen.blit(self.background, (0, 0))
+
+			# Draw HP to screen
+			pg.draw.line(self.screen, (0,255,0), (100, 50), (100+self.monster.hp, 50), 10)
+
+			# Draw sprites to screen
+			if self.monster.hp > 0:
+				self.monsters.draw(self.screen)	
+			self.sprites.draw(self.screen)
+
+			# Update pygame display
+			pg.display.flip()
+
+			# Update the Tk display
+			self.root.update()
 
 class Character(pg.sprite.Sprite):
 	def __init__(self):
@@ -57,87 +130,8 @@ class Monster(pg.sprite.Sprite):
 		self.rect.center = (150,125)
 		self.hp = 100
 
-	def damaged(self):
-		if self.rect.collidepoint((xcoord, ycoord)):
-			cmd = 'damage:1'
-			return cmd
-		else:
-			cmd = 'damage:0'
-			return cmd
+	def damaged(self, xcoord, ycoord):
+		if self.rect.collidepoint((xcoord, ycoord)): return 'damage:1'
+		else: return 'damage:0'
 
-# create a sprite group
-sprites = pg.sprite.Group()
-monsters = pg.sprite.Group()
-
-monster = Monster()
-monsters.add(monster)
-
-# Main animation loop
-while 1:
-
-    clock.tick(60)
-
-    key = pg.key.get_pressed()
-    if key[pg.K_LEFT]:
-        if xcoord > 0:
-            xcoord -= 10
-    if key[pg.K_RIGHT]:
-        if xcoord < 500:
-            xcoord += 10
-    if key[pg.K_UP]:
-        if ycoord > 0:
-            ycoord -= 10
-    if key[pg.K_DOWN]:
-        if ycoord < 250:
-            ycoord += 10
-
-    cmd = 'coord:' + str(xcoord) + ':' + str(ycoord)
-    s.sendall(cmd.encode('utf8'))
-    playerdata = s.recv(1024).decode('utf8')
-
-    print(playerdata)
-    playerdata = playerdata.split(';')
-    playerdata = playerdata[0:len(playerdata)-1]
-
-    numplayers = len(playerdata)
-    while len(sprites) != numplayers:
-    	if len(sprites) < numplayers:
-    		p = Character()
-    		sprites.add(p)
-    	elif len(sprites) > numplayers:
-    		p = Character()
-    		sprites.remove()
-
-    location = []
-
-    for player in playerdata:
-        player = player.split(':')
-        location += [(int(player[0]), int(player[1]))]            
-
-    num = 0
-    for sprite in sprites:
-        sprite.update(location[num][0], location[num][1])
-        num += 1
-
-    cmd = monster.damaged()
-    s.sendall(cmd.encode('utf8'))
-    monsterdata = s.recv(1024).decode('utf8')
-
-    monster.hp = 100 - float(monsterdata)
-    
-    # Clear screen before next frame
-    screen.blit(background, (0, 0))
-
-    # Draw HP to screen
-    pg.draw.line(screen, (0,255,0), (100, 50), (100+monster.hp, 50), 10)
-
-    # Draw sprites to screen
-    if monster.hp > 0:
-    	monsters.draw(screen)	
-    sprites.draw(screen)
-
-    # Update pygame display
-    pg.display.flip()
-
-    # Update the Tk display
-    root.update()
+client = Client()

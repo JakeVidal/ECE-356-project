@@ -1,103 +1,137 @@
 import tkinter as tk
 import pygame as pg
-import math as m
-import random as r
 import os
 import socket
-import time
 
-# Global variables
-width, height, center = 500, 250, (150, 125)
-first_iteration = True
-xref_point = (50, 0, 0)
-yref_point = (0, -50, 0)
-zref_point = (0, 0, 50)
-HOST = '127.0.0.1'
-PORT = 10000 # this is arbitrary, must be >1024
+class Client():
+    def __init__(self):
+        self.width, self.height = 500, 200
+        self.center = (int(self.width/2), int(self.height/2))
+        self.xcoord, self.ycoord = self.center
 
-# Define rotation functions
-def rotate_point_yaxis(xcoord, ycoord, zcoord, theta):
-    return (xcoord*m.cos(theta)+zcoord*m.sin(theta), ycoord, -1*xcoord*m.sin(theta)+zcoord*m.cos(theta))
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect(('127.0.0.1', 10000))
 
-def rotate_point_xaxis(xcoord, ycoord, zcoord, theta):
-    return (xcoord, ycoord*m.cos(theta)-zcoord*m.sin(theta), ycoord*m.sin(theta)+zcoord*m.cos(theta))
+        self.clock = pg.time.Clock()
+        
+        self.start_application()
 
-def rotate_point_zaxis(xcoord, ycoord, zcoord, theta):
-    return (xcoord*m.cos(theta)-ycoord*m.sin(theta), xcoord*m.sin(theta)+ycoord*m.cos(theta), zcoord)
+        self.sprites = pg.sprite.Group()
+        self.monsters = pg.sprite.Group()
 
-def rotate_point_xyz(xcoord, ycoord, zcoord, thetax, thetay, thetaz):
-    a = rotate_point_xaxis(xcoord, ycoord, zcoord, thetax)
-    b = rotate_point_yaxis(a[0], a[1], a[2], thetay)
-    return rotate_point_zaxis(b[0], b[1], b[2], thetaz)
+        self.monster = Monster()
+        self.monsters.add(self.monster)
 
-# Add tkinter widgets placing pygame in embed
-root = tk.Tk()
-root.title("Client application")
-#root.iconbitmap('icon.ico')
-embed = tk.Frame(root, width=width, height=height)
-embed.pack()
-sliderz = tk.Scale(root, from_=-180, to=180, orient=tk.HORIZONTAL, label='Z-axis')
-sliderz.pack(side=tk.RIGHT)
-slidery = tk.Scale(root, from_=-180, to=180, orient=tk.HORIZONTAL, label='Y-axis')
-slidery.pack(side=tk.RIGHT)
-sliderx = tk.Scale(root, from_=-180, to=180, orient=tk.HORIZONTAL, label='X-axis')
-sliderx.pack(side=tk.RIGHT)
+        self.game_loop()
 
-# Tell pygame's SDL window which window ID to use    
-os.environ['SDL_WINDOWID'] = str(embed.winfo_id())
 
-# Show the window so it's assigned an ID.
-root.update()
+    def start_application(self):
+        self.root = tk.Tk()
+        self.root.title('Client application')
+        self.root.iconbitmap('icon.ico')
+        self.embed = tk.Frame(self.root, width = self.width, height = self.height)
+        self.embed.pack()
 
-# Usual pygame initialization
-pg.display.init()
-screen = pg.display.set_mode((width,height))
+        os.environ['SDL_WINDOWID'] = str(self.embed.winfo_id())
+        self.root.update()
 
-#connect to server
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((HOST, PORT))
+        pg.display.init()
+        self.screen = pg.display.set_mode((self.width, self.height))
 
-testnum = 0
-# Main animation loop
-while 1:
+        self.background = pg.image.load('background.png').convert()
+        self.background = pg.transform.scale(self.background, (self.width,self.height))
+        self.screen.blit(self.background, (0,0))
 
-    # Update  screen background
-    screen.fill((100, 100, 100))
+    def game_loop(self):
+        while 1:
+            self.clock.tick(60)
 
-    # Set slider input
-    thetay = m.radians(sliderx.get())
-    thetax = m.radians(slidery.get())
-    thetaz = m.radians(sliderz.get())
+            key = pg.key.get_pressed()
+            if key[pg.K_LEFT]:
+                if self.xcoord > 0:
+                    self.xcoord -= 10
+            if key[pg.K_RIGHT]:
+                if self.xcoord < 500:
+                    self.xcoord += 10
+            if key[pg.K_UP]:
+                if self.ycoord > 0:
+                    self.ycoord -= 10
+            if key[pg.K_DOWN]:
+                if self.ycoord < 250:
+                    self.ycoord += 10
 
-    # Draw x, y and z axis reference
-    x_point = rotate_point_xyz(xref_point[0], xref_point[1], xref_point[2], thetax, thetay, thetaz)
-    y_point = rotate_point_xyz(yref_point[0], yref_point[1], yref_point[2], thetax, thetay, thetaz)
-    z_point = rotate_point_xyz(zref_point[0], zref_point[1], zref_point[2], thetax, thetay, thetaz)
-    pg.draw.line(screen, (255, 0, 0), (75, height-75), (75+x_point[0], height-75+x_point[1]), 3)
-    pg.draw.line(screen, (0, 255, 0), (75, height-75), (75+y_point[0], height-75+y_point[1]), 3)
-    pg.draw.line(screen, (0, 0, 255), (75, height-75), (75+z_point[0], height-75+z_point[1]), 3)
-    pg.draw.circle(screen, (255, 255, 255), (75, height-75), 3)
+            cmd = 'coord:' + str(self.xcoord) + ':' + str(self.ycoord)
+            self.sock.sendall(cmd.encode('utf8'))
+            playerdata = self.sock.recv(1024).decode('utf8')
 
-    xcoord = sliderx.get()
-    ycoord = slidery.get()
-       
-    cmd = 'xcoord:' + str(xcoord)
-    s.sendall(cmd.encode('utf8'))
-    playerdata = s.recv(1024).decode('utf8')
+            print(playerdata)
+            playerdata = playerdata.split(';')
+            playerdata = playerdata[0:len(playerdata)-1]
 
-    cmd = 'ycoord:' + str(ycoord)
-    s.sendall(cmd.encode('utf8'))
-    playerdata = s.recv(1024).decode('utf8')
+            numplayers = len(playerdata)
+            while len(self.sprites) != numplayers:
+                if len(self.sprites) < numplayers:
+                    p = Character()
+                    self.sprites.add(p)
+                elif len(self.sprites) > numplayers:
+                    p = Character()
+                    self.sprites.remove()
 
-    print(playerdata)
-    playerdata = playerdata.split(';')
-    for player in playerdata:
-        player = player.split(':')
-        if player != ['']:
-            pg.draw.circle(screen, (255, 255, 255), (int(player[0]), int(player[1])), 3)
+            location = []
 
-    # Update pygame display
-    pg.display.flip()
+            for player in playerdata:
+                player = player.split(':')
+                location += [(int(player[0]), int(player[1]))]            
 
-    # Update the Tk display
-    root.update()
+            num = 0
+            for sprite in self.sprites:
+                sprite.update(location[num][0], location[num][1])
+                num += 1
+
+            cmd = self.monster.damaged(self.xcoord, self.ycoord)
+            self.sock.sendall(cmd.encode('utf8'))
+            monsterdata = self.sock.recv(1024).decode('utf8')
+
+            self.monster.hp = 100 - float(monsterdata)
+            
+            # Clear screen before next frame
+            self.screen.blit(self.background, (0, 0))
+
+            # Draw HP to screen
+            pg.draw.line(self.screen, (0,255,0), (100, 50), (100+self.monster.hp, 50), 10)
+
+            # Draw sprites to screen
+            if self.monster.hp > 0:
+                self.monsters.draw(self.screen) 
+            self.sprites.draw(self.screen)
+
+            # Update pygame display
+            pg.display.flip()
+
+            # Update the Tk display
+            self.root.update()
+
+class Character(pg.sprite.Sprite):
+    def __init__(self):
+        pg.sprite.Sprite.__init__(self)
+        self.image = pg.image.load('character.png').convert_alpha()
+        self.image = pg.transform.scale(self.image, (64,64))
+        self.rect = self.image.get_rect()
+
+    def update(self, xcoord, ycoord):
+        self.rect.center = (xcoord,ycoord)
+
+class Monster(pg.sprite.Sprite):
+    def __init__(self):
+        pg.sprite.Sprite.__init__(self)
+        self.image = pg.image.load('monster.png').convert_alpha()
+        self.image = pg.transform.scale(self.image, (128,128))
+        self.rect = self.image.get_rect()
+        self.rect.center = (150,125)
+        self.hp = 100
+
+    def damaged(self, xcoord, ycoord):
+        if self.rect.collidepoint((xcoord, ycoord)): return 'damage:1'
+        else: return 'damage:0'
+
+client = Client()
