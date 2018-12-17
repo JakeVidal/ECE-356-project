@@ -11,7 +11,7 @@ class Server():
 		self.sock.setblocking(False)
 		
 		self.loop = asyncio.get_event_loop()
-		self.loop.run_until_complete(self.run_server());
+		self.loop.run_until_complete(self.run_server())
 
 	async def run_server(self):
 		while True:
@@ -29,16 +29,16 @@ class Server():
 			request = request.decode('utf8').split(':')
 			print(str(request) + '   ' + str(client.fileno()))
 
-			if request[0] == 'coord':
-				await self.handle_player(client, int(request[1]), int(request[2]))
-
-			if request[0] == 'damage':
-				await self.handle_monster(client, int(request[1]))
-
 			if request[0] == 'quit':
+				self.clientlist.pop(client.fileno())
 				running = False
 
-		del self.clientlist[client.fileno()]
+			elif request[0] == 'coord':
+				await self.handle_player(client, int(request[1]), int(request[2]))
+
+			elif request[0] == 'damage':
+				await self.handle_monster(client, int(request[1]))
+
 		client.close()
 
 	async def handle_player(self, client, xcoord, ycoord):

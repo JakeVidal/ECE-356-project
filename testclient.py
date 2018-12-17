@@ -3,7 +3,7 @@ import pygame as pg
 import os
 import socket
 
-global running
+running = True
 
 class Client():
 	def __init__(self):
@@ -27,8 +27,6 @@ class Client():
 		self.game_loop()
 
 	def game_loop(self):
-		running = True 
-
 		while running:
 			self.clock.tick(60)
 
@@ -93,15 +91,12 @@ class Client():
 		monsterdata = self.sock.recv(1024).decode('utf8')
 		self.monster.hp = 100 - float(monsterdata)
 
-def quit_program():
-	running = False
-
 class Application():
 	def __init__(self, width, height):
 		self.root = tk.Tk()
 		self.root.title('Client application')
 		self.root.iconbitmap('icon.ico')
-		self.root.protocol('WM_DELETE_WINDOW', quit_program)
+		self.root.protocol('WM_DELETE_WINDOW', lambda: exec(compile('global running; running = False', '<string>', 'exec')))
 		self.embed = tk.Frame(self.root, width = width, height = height)
 		self.embed.pack()
 
