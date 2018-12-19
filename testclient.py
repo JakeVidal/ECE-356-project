@@ -2,7 +2,6 @@ import tkinter as tk
 import pygame as pg
 import os
 import socket
-import time
 
 running = True
 

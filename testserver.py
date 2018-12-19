@@ -58,11 +58,15 @@ class Server():
 		await self.loop.sock_sendall(client, response.encode('utf8'))
 
 	async def handle_create(self, client, user, passw):
-		self.clientlist[client.fileno()]['account'] = user
-		accountdata = {'password': '', 'strength': 1}
-		self.accountlist[user] = accountdata
-		self.accountlist[user]['password'] = passw
-		response = 'accepted'
+		if user in self.accountlist:
+			response = 'denied'
+		else:
+			self.clientlist[client.fileno()]['account'] = user
+			accountdata = {'password': '', 'strength': 1}
+			self.accountlist[user] = accountdata
+			self.accountlist[user]['password'] = passw
+			response = 'accepted'
+
 		await self.loop.sock_sendall(client, response.encode('utf8'))
 
 	async def handle_player(self, client, xcoord, ycoord):
